@@ -11,7 +11,7 @@ from awsglue.utils import getResolvedOptions
 from pyspark.context import SparkContext
 from awsglue.context import GlueContext
 from awsglue.job import Job
-
+from awsglue.dynamicframe import DynamicFrame
 
 
 
@@ -71,30 +71,6 @@ tedx_dataset_main = tedx_dataset.join(details_dataset, tedx_dataset.id == detail
 tedx_dataset_main.printSchema()
 
 
-####da qui
-## READ THE IMAGES (VERSIONE NUOVA)
-images_dataset_path = "s3://bolisfilippoantonio-data/images.csv"
-images_dataset = spark.read \
-    .option("header","true") \
-    .option("quote", "\"") \
-    .option("escape", "\"") \
-    .csv(images_dataset_path)
- 
-images_dataset = images_dataset.select(col("id").alias("id_ref"),
-                                         col("url").alias("image_url"))
- 
-# AND JOIN WITH THE MAIN TABLE
-tedx_dataset_main = tedx_dataset.join(details_dataset, tedx_dataset.id == details_dataset.id_ref, "left") \
-    .drop("id_ref")
-    
-#VERSIONE NUOVA DEL JOIN
-tedx_dataset_main = tedx_dataset_main.join(images_dataset, tedx_dataset_main.id == images_dataset.id_ref, "left") \
-    .drop("id_ref")
- 
-tedx_dataset_main.printSchema()
-### a qui fallisce
-
-
 ## READ TAGS DATASET
 tags_dataset_path = "s3://tedx-2024-datamio/tags.csv"
 tags_dataset = spark.read.option("header","true").csv(tags_dataset_path)
@@ -110,14 +86,13 @@ tedx_dataset_agg = tedx_dataset_main.join(tags_dataset_agg, tedx_dataset.id == t
 
 tedx_dataset_agg.printSchema()
 
-
 write_mongo_options = {
     "connectionName": "TEDX",
     "database": "unibg_tedx_2024",
     "collection": "tedx_data",
     "ssl": "true",
     "ssl.domain_match": "false"}
-from awsglue.dynamicframe import DynamicFrame
+
 tedx_dataset_dynamic_frame = DynamicFrame.fromDF(tedx_dataset_agg, glueContext, "nested")
 
 glueContext.write_dynamic_frame.from_options(tedx_dataset_dynamic_frame, connection_type="mongodb", connection_options=write_mongo_options)
