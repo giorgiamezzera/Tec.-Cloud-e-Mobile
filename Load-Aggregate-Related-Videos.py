@@ -43,35 +43,22 @@ count_items_null=related_videos_dataset.filter("id is not null").count()
 print(f"numero di items dal raw data {count_items}")
 print(f"numero di items con chiave NOT NULL {count_items_null}")
 
-#drop colonne diverse dall'id
-related_videos_dataset=related_videos_dataset.drop("internalId") \
-                        .drop("related_id") \
-                        .drop("slug") \
-                        .drop("title") \
-                        .drop("duration") \
-                        .drop("viewedCount") \
-                        .drop("presenterDisplayName")
+#drop colonne diverse dall'id - seleziono solo quelle che mi interessano
+related_videos_dataset=related_videos_dataset.select("id","related_id")
 
 #aggrego gli items con lo stesso id
-related_videos_dataset_agg=related_videos_dataset.groupBy(col("id").alias("id_ref")).agg(collect_set("related_videos_id").alias("related_videos"))
+related_videos_dataset_agg = related_videos_dataset.groupBy(col("id").alias("id_ref")).agg(collect_set("related_id").alias("related_videos"))
 related_videos_dataset_agg.printSchema()
 
 #leggo tedx dataset da mongodb
-mongo_uri="mongodb+srv://<pippo>:<pippo>@mycluster.jopj5ck.mongodb.net/?retryWrites=true&w=majority&appName=myCluster"
-
 read_mongo_options = {
-   "uri": mongo_uri,
+    "connectionName": "TEDX2024",
     "database": "unibg_tedx_2024",
     "collection": "tedx_data",
-    "username":"pippo",
-    "password":"pippo",
-    "partitioner": "MongoSamplePartitioner",
-    "partitionerOptions.partitionSizeMB": "10",
-    "partitionerOptions.partitionKey": "_id",
     "ssl": "true",
     "ssl.domain_match": "false"}
 
-tedx_dataset=gluecontext.create_dynamic_frame.from_options(connction_type="mongodb",connection_options=read_mongo_options).toDF()
+tedx_dataset=gluecontext.create_dynamic_frame.from_options(connection_type="mongodb",connection_options=read_mongo_options).toDF()
 tedx_dataset.printSchema()
 
 #creo il modello aggregato: aggiungo related_videos a tedx_dataset
@@ -82,11 +69,9 @@ tedx_dataset_agg.printSchema()
 
 #scrivo il risultato in mongodb
 write_mongo_options = {
-    "uri": mongo_uri,
+    "connectionName": "TEDX2024",
     "database": "unibg_tedx_2024",
     "collection": "tedx_data",
-    "username":"pippo",
-    "password":"pippo",
     "ssl": "true",
     "ssl.domain_match": "false"}
 
