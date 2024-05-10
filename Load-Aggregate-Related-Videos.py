@@ -77,3 +77,81 @@ write_mongo_options = {
 
 tedx_dataset_dynamic_frame=DynamicFrame.fromDF(tedx_dataset_agg,gluecontext,"nested")
 gluecontext.write_dynamic_frame.from_options(tedx_dataset_dynamic_frame,connection_type="mongodb",connection_options=write_mongo_options)
+
+
+
+
+
+###nuovo-> oggetti
+import sys
+import json
+import pyspark
+from pyspark.sql.functions import col, collect_list, struct
+
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
+from awsglue.dynamicframe import DynamicFrame
+
+# Leggi i parametri
+args = getResolvedOptions(sys.argv,['JOB_NAME'])
+
+# Inizia il job
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args['JOB_NAME'], args)
+
+# Percorso del dataset dei video correlati
+related_videos_dataset_path = "s3://test-unigm/related_videos.csv"
+
+# Leggi il dataset dei video correlati
+related_videos_dataset = spark.read \
+    .option("header", "true") \
+    .option("quote", "\"") \
+    .option("escape", "\"") \
+    .csv(related_videos_dataset_path)
+
+# Seleziona le colonne di interesse e crea un nuovo struct per ogni riga
+videos_df = related_videos_dataset.select(col("related_id").alias("id"),
+                                          struct(col("internalId").alias("internalId"),
+                                                 col("slug"),
+                                                 col("title"),
+                                                 col("duration"),
+                                                 col("viewedCount"),
+                                                 col("presenterDisplayName")).alias("video"))
+
+# Raggruppa i video correlati per id principale e crea un array di oggetti video
+related_videos_agg = videos_df.groupBy("id").agg(collect_list("video").alias("related_videos"))
+
+# Leggi il dataset principale da MongoDB
+read_mongo_options = {
+    "connectionName": "TEDX2024",
+    "database": "unibg_tedx_2024",
+    "collection": "tedx_data",
+    "ssl": "true",
+    "ssl.domain_match": "false"
+}
+tedx_dataset = glueContext.create_dynamic_frame.from_options(connection_type="mongodb", connection_options=read_mongo_options).toDF()
+
+# Unisciti al dataset principale
+tedx_dataset_agg = tedx_dataset.join(related_videos_agg, tedx_dataset._id == related_videos_agg.id, "left") \
+                    .drop("id")  # Rimuovi la colonna aggiunta durante l'aggregazione
+
+# Scrivi il risultato in MongoDB
+write_mongo_options = {
+    "connectionName": "TEDX2024",
+    "database": "unibg_tedx_2024",
+    "collection": "tedx_data",
+    "ssl": "true",
+    "ssl.domain_match": "false"
+}
+tedx_dataset_dynamic_frame = DynamicFrame.fromDF(tedx_dataset_agg, glueContext, "nested")
+glueContext.write_dynamic_frame.from_options(tedx_dataset_dynamic_frame, connection_type="mongodb", 
+                                              connection_options=write_mongo_options)
+
+# Termina il job
+job.commit()

@@ -26,51 +26,34 @@ Metadata:
         default: "BuildNumber"
 
 Resources:
-  # --- BEGIN OUR INFRASTRUCTURE ---
+  # INFRASTRUTTURA TEDX
+  # bucket tedx-2024-datamio
   DataS3Bucket:
     Type: 'AWS::S3::Bucket'
     DeletionPolicy: Retain
     Properties:
       BucketName: "tedx-2024-datamio"
   
-  # --- BEGIN OUR INFRASTRUCTURE ---
+  # bucket tedx-2024-scriptmio
   ScriptS3Bucket:
     Type: 'AWS::S3::Bucket'
     DeletionPolicy: Retain
     Properties:
       BucketName: "tedx-2024-scriptmio"
 
-  # --- BEGIN OUR INFRASTRUCTURE ---
+  # bucket tedx-2024-logmio
   LogS3Bucket:
     Type: 'AWS::S3::Bucket'
     DeletionPolicy: Retain
     Properties:
       BucketName: "tedx-2024-logmio"
 
-  HelloLambdaFunction:
-    Type: AWS::Lambda::Function
+  # aggiungo bucket bellanotedx-data
+  TedxBellanoDataS3Bucket:
+    Type: 'AWS::S3::Bucket'
+    DeletionPolicy: Retain
     Properties:
-      FunctionName: HelloLambdaFunction
-      Role: "arn:aws:iam::533267088779:role/LabRole"
-      Runtime: python3.11
-      Handler: index.my_handler
-      Code:
-        ZipFile: |
-          def my_handler(event, context):
-            message = 'Hello Lambda World!'
-            return message
+      BucketName: "tedxbellano-data"
+
+
   
-  FactorialLambdaFunction:
-    Type: AWS::Lambda::Function
-    Properties:
-      FunctionName: FactorialLambdaFunction
-      Role: "arn:aws:iam::533267088779:role/LabRole"
-      Runtime: python3.11
-      Handler: index.my_handler
-      Code:
-        ZipFile: |
-          import math
-          def my_handler(event, context):
-            x = event["x"]
-            x = math.factorial(x)
-            return x
